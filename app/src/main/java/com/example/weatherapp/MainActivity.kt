@@ -1,5 +1,7 @@
 package com.example.weatherapp
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -7,21 +9,32 @@ import android.content.Intent
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 
 class MainActivity : AppCompatActivity() {
     private val REQUEST_LOCATION_CODE = 12424
+    private lateinit var mFusedLocationClient: FusedLocationProviderClient
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
-    
+
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         if(!isLocationEnabled()) {
             Toast.makeText(this@MainActivity, "The location is not Enabled", Toast.LENGTH_SHORT)
                 .show()
@@ -33,6 +46,43 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if(requestCode == REQUEST_LOCATION_CODE && grantResults.size > 0) {
+            Toast.makeText(this, "Permission Granted", Toast.LENGTH_SHORT).show()
+            requestLocationData()
+        } else {
+            Toast.makeText(this, "The permission was not granted", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun requestLocationData() {
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY,
+            1000).build()
+        mFusedLocationClient.requestLocationUpdates(locationRequest, object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                Toast.makeText(
+                    this@MainActivity,
+                    "latitude: ${locationResult.lastLocation?.latitude} \n longitude: ${locationResult.lastLocation?.longitude}",
+                    Toast.LENGTH_SHORT
+                ).show()
+                getLocationWeatherDetails()
+            }
+        }, Looper.myLooper())
+    }
+
+    private fun getLocationWeatherDetails(){
+        if(Constants.isNetworkAvailable(this)) {
+            Toast.makeText(this, "There is internet connection.", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "There is no internet connection.", Toast.LENGTH_SHORT).show()
+        }
+    }
     private fun isLocationEnabled() : Boolean {
         val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
